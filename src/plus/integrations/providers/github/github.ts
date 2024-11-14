@@ -1,3 +1,5 @@
+import { fetch, getProxyAgent, wrapForForcedInsecureSSL } from '@env/fetch';
+import { isWeb } from '@env/platform';
 import { graphql, GraphqlResponseError } from '@octokit/graphql';
 import { request } from '@octokit/request';
 import { RequestError } from '@octokit/request-error';
@@ -5,8 +7,6 @@ import type { Endpoints, OctokitResponse, RequestParameters } from '@octokit/typ
 import type { HttpsProxyAgent } from 'https-proxy-agent';
 import type { CancellationToken, Disposable, Event } from 'vscode';
 import { EventEmitter, Uri, window } from 'vscode';
-import { fetch, getProxyAgent, wrapForForcedInsecureSSL } from '@env/fetch';
-import { isWeb } from '@env/platform';
 import type { Container } from '../../../../container';
 import {
 	AuthenticationError,
@@ -32,7 +32,6 @@ import {
 	showIntegrationRequestFailed500WarningMessage,
 	showIntegrationRequestTimedOutWarningMessage,
 } from '../../../../messages';
-import { configuration } from '../../../../system/configuration';
 import { debug } from '../../../../system/decorators/log';
 import { uniqueBy } from '../../../../system/iterable';
 import { Logger } from '../../../../system/logger';
@@ -42,6 +41,7 @@ import { maybeStopWatch } from '../../../../system/stopwatch';
 import { base64 } from '../../../../system/string';
 import type { Version } from '../../../../system/version';
 import { fromString, satisfies } from '../../../../system/version';
+import { configuration } from '../../../../system/vscode/configuration';
 import type {
 	GitHubBlame,
 	GitHubBlameRange,
@@ -190,6 +190,7 @@ repository {
 		login
 	}
 	viewerPermission
+	url
 }
 `;
 
@@ -2874,9 +2875,15 @@ export class GitHubApi implements Disposable {
 			}
 
 			// Hack for now, ultimately this should be passed in
-			const ignoredOrgs = configuration.get('launchpad.ignoredOrganizations') ?? [];
-			if (ignoredOrgs.length) {
-				search += ` -org:${ignoredOrgs.join(' -org:')}`;
+			const enabledOrgs = configuration.get('launchpad.includedOrganizations') ?? [];
+			if (enabledOrgs.length) {
+				search += ` org:${enabledOrgs.join(' org:')}`;
+			} else {
+				// Hack for now, ultimately this should be passed in
+				const ignoredOrgs = configuration.get('launchpad.ignoredOrganizations') ?? [];
+				if (ignoredOrgs.length) {
+					search += ` -org:${ignoredOrgs.join(' -org:')}`;
+				}
 			}
 
 			const rsp = await this.graphql<SearchResult>(
@@ -2927,7 +2934,14 @@ export class GitHubApi implements Disposable {
 	async searchMyIssues(
 		provider: Provider,
 		token: string,
-		options?: { search?: string; user?: string; repos?: string[]; baseUrl?: string; avatarSize?: number },
+		options?: {
+			search?: string;
+			user?: string;
+			repos?: string[];
+			baseUrl?: string;
+			avatarSize?: number;
+			includeBody?: boolean;
+		},
 		cancellation?: CancellationToken,
 	): Promise<SearchedIssue[] | undefined> {
 		const scope = getLogScope();
@@ -2944,6 +2958,14 @@ export class GitHubApi implements Disposable {
 			};
 		}
 
+		const issueFragement = `${gqIssueFragment}${
+			options?.includeBody
+				? `
+			body
+			`
+				: ''
+		}`;
+
 		const query = `query searchMyIssues(
 				$authored: String!
 				$assigned: String!
@@ -2953,21 +2975,21 @@ export class GitHubApi implements Disposable {
 				authored: search(first: 100, query: $authored, type: ISSUE) {
 					nodes {
 						... on Issue {
-							${gqIssueFragment}
+							${issueFragement}
 						}
 					}
 				}
 				assigned: search(first: 100, query: $assigned, type: ISSUE) {
 					nodes {
 						... on Issue {
-							${gqIssueFragment}
+							${issueFragement}
 						}
 					}
 				}
 				mentioned: search(first: 100, query: $mentioned, type: ISSUE) {
 					nodes {
 						... on Issue {
-							${gqIssueFragment}
+							${issueFragement}
 						}
 					}
 				}
@@ -3034,7 +3056,9 @@ export class GitHubApi implements Disposable {
 		const scope = getLogScope();
 
 		interface SearchResult {
-			nodes: GitHubPullRequest[];
+			search: {
+				nodes: GitHubPullRequest[];
+			};
 		}
 
 		try {
@@ -3042,7 +3066,7 @@ export class GitHubApi implements Disposable {
 	$searchQuery: String!
 	$avatarSize: Int
 ) {
-	search(first: 100, query: $searchQuery, type: ISSUE) {
+	search(first: 10, query: $searchQuery, type: ISSUE) {
 		nodes {
 			...on PullRequest {
 				${gqlPullRequestFragment}
@@ -3076,7 +3100,7 @@ export class GitHubApi implements Disposable {
 			);
 			if (rsp == null) return [];
 
-			const results = rsp.nodes.map(pr => fromGitHubPullRequest(pr, provider));
+			const results = rsp.search.nodes.map(pr => fromGitHubPullRequest(pr, provider));
 			return results;
 		} catch (ex) {
 			throw this.handleException(ex, provider, scope);

@@ -1,7 +1,7 @@
-import type { ExtensionContext } from 'vscode';
-import { version as codeVersion, env, ExtensionMode, Uri, window, workspace } from 'vscode';
 import { hrtime } from '@env/hrtime';
 import { isWeb } from '@env/platform';
+import type { ExtensionContext } from 'vscode';
+import { version as codeVersion, env, ExtensionMode, Uri, window, workspace } from 'vscode';
 import { Api } from './api/api';
 import type { CreatePullRequestActionContext, GitLensApi, OpenPullRequestActionContext } from './api/gitlens';
 import type { CreatePullRequestOnRemoteCommandArgs } from './commands/createPullRequestOnRemote';
@@ -18,17 +18,17 @@ import { isRepository } from './git/models/repository';
 import { isTag } from './git/models/tag';
 import { showDebugLoggingWarningMessage, showPreReleaseExpiredErrorMessage, showWhatsNewMessage } from './messages';
 import { registerPartnerActionRunners } from './partners';
-import { executeCommand, registerCommands } from './system/command';
-import { configuration, Configuration } from './system/configuration';
-import { setContext } from './system/context';
 import { setDefaultDateLocales } from './system/date';
 import { once } from './system/event';
 import { BufferedLogChannel, getLoggableName, Logger } from './system/logger';
 import { flatten } from './system/object';
 import { Stopwatch } from './system/stopwatch';
-import { Storage } from './system/storage';
-import { isTextDocument, isTextEditor, isWorkspaceFolder } from './system/utils';
 import { compare, fromString, satisfies } from './system/version';
+import { executeCommand, registerCommands } from './system/vscode/command';
+import { configuration, Configuration } from './system/vscode/configuration';
+import { setContext } from './system/vscode/context';
+import { Storage } from './system/vscode/storage';
+import { isTextDocument, isTextEditor, isWorkspaceFolder } from './system/vscode/utils';
 import { isViewNode } from './views/nodes/abstract/viewNode';
 import './commands';
 
@@ -147,15 +147,18 @@ export async function activate(context: ExtensionContext): Promise<GitLensApi | 
 		previousVersion = localVersion;
 	}
 
-	let exitMessage;
-	if (Logger.enabled('debug')) {
-		exitMessage = `syncedVersion=${syncedVersion}, localVersion=${localVersion}, previousVersion=${previousVersion}, welcome=${storage.get(
-			'views:welcome:visible',
-		)}`;
+	// If there is no local previous version, this is a new install on this machine
+	if (localVersion == null) {
+		void setContext('gitlens:newInstall', true);
+	}
+	// If there is no local or synced previous version, this is a new install for this user
+	if (previousVersion == null) {
+		void setContext('gitlens:newUserInstall', true);
 	}
 
-	if (previousVersion == null) {
-		void storage.store('views:welcome:visible', true);
+	let exitMessage;
+	if (Logger.enabled('debug')) {
+		exitMessage = `syncedVersion=${syncedVersion}, localVersion=${localVersion}, previousVersion=${previousVersion}`;
 	}
 
 	Configuration.configure(context);
@@ -186,7 +189,7 @@ export async function activate(context: ExtensionContext): Promise<GitLensApi | 
 			);
 		}
 
-		void showWelcomeOrWhatsNew(container, gitlensVersion, prerelease, previousVersion);
+		void showWhatsNew(container, gitlensVersion, prerelease, previousVersion);
 
 		void storage.store(prerelease ? 'preVersion' : 'version', gitlensVersion);
 
@@ -281,7 +284,7 @@ export function deactivate() {
 // }
 
 function setKeysForSync(context: ExtensionContext, ...keys: (SyncedStorageKeys | string)[]) {
-	context.globalState?.setKeysForSync([...keys, SyncedStorageKeys.Version, SyncedStorageKeys.HomeViewWelcomeVisible]);
+	context.globalState?.setKeysForSync([...keys, SyncedStorageKeys.Version, SyncedStorageKeys.PreReleaseVersion]);
 }
 
 function registerBuiltInActionRunners(container: Container): void {
@@ -316,7 +319,7 @@ function registerBuiltInActionRunners(container: Container): void {
 	);
 }
 
-async function showWelcomeOrWhatsNew(
+async function showWhatsNew(
 	container: Container,
 	version: string,
 	prerelease: boolean,
@@ -324,30 +327,6 @@ async function showWelcomeOrWhatsNew(
 ) {
 	if (previousVersion == null) {
 		Logger.log(`GitLens first-time install; window.focused=${window.state.focused}`);
-
-		if (configuration.get('showWelcomeOnInstall') === false) return;
-
-		if (window.state.focused) {
-			await container.storage.delete('pendingWelcomeOnFocus');
-			await executeCommand(Commands.ShowWelcomePage);
-		} else {
-			// Save pending on window getting focus
-			await container.storage.store('pendingWelcomeOnFocus', true);
-			const disposable = window.onDidChangeWindowState(e => {
-				if (!e.focused) return;
-
-				disposable.dispose();
-
-				// If the window is now focused and we are pending the welcome, clear the pending state and show the welcome
-				if (container.storage.get('pendingWelcomeOnFocus') === true) {
-					void container.storage.delete('pendingWelcomeOnFocus');
-					if (configuration.get('showWelcomeOnInstall')) {
-						void executeCommand(Commands.ShowWelcomePage);
-					}
-				}
-			});
-			container.context.subscriptions.push(disposable);
-		}
 
 		return;
 	}

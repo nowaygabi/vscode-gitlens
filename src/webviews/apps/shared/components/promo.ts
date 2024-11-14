@@ -1,5 +1,6 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import type { Promo } from '../../../../plus/gk/account/promos';
 
 @customElement('gl-promo')
@@ -52,6 +53,11 @@ export class GlPromo extends LitElement {
 	@property({ reflect: true, type: String })
 	type: 'link' | 'info' = 'info';
 
+	@property({ reflect: true, type: Boolean, attribute: 'has-promo' })
+	get hasPromo() {
+		return this.promo != null;
+	}
+
 	override render() {
 		if (!this.promo) return;
 
@@ -61,8 +67,8 @@ export class GlPromo extends LitElement {
 		if (this.type === 'link') {
 			return html`<a
 				class="link"
-				href="${this.promo.command ?? 'command:gitlens.plus.upgrade'}"
-				title="${this.promo.commandTooltip}"
+				href="${this.promo.command?.command ?? 'command:gitlens.plus.upgrade'}"
+				title="${ifDefined(this.promo.command?.tooltip)}"
 				>${promoHtml}</a
 			>`;
 		}
@@ -75,13 +81,12 @@ export class GlPromo extends LitElement {
 		switch (promo.key) {
 			case 'pro50':
 				return html`<span class="content${this.type === 'link' ? nothing : ' muted'}"
-					>Limited-Time Sale: <b>Save 33% or more on your 1st seat of Pro.</b></span
+					><b>Save 33% or more</b> on your 1st seat of Pro</span
 				>`;
 
-			case 'launchpad':
-			case 'launchpad-extended':
+			case 'gitlens16':
 				return html`<span class="content${this.type === 'link' ? nothing : ' muted'}"
-					>Launchpad Sale: <b>Save 75% or more on GitLens Pro.</b></span
+					><b>Save more than 55%</b> during our GitLens 16 sale!</span
 				>`;
 		}
 	}

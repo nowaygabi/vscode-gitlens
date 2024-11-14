@@ -34,7 +34,7 @@ import {
 	UpdatePreferencesCommand,
 } from '../../../../plus/webviews/patchDetails/protocol';
 import { debounce } from '../../../../system/function';
-import type { Serialized } from '../../../../system/serialize';
+import type { Serialized } from '../../../../system/vscode/serialize';
 import type { IpcMessage } from '../../../protocol';
 import { ExecuteCommand } from '../../../protocol';
 import { App } from '../../shared/appBase';
@@ -361,10 +361,8 @@ export class PatchDetailsApp extends App<Serialized<State>> {
 
 			if (result.error) {
 				this.component.explain = { error: { message: result.error.message ?? 'Error retrieving content' } };
-			} else if (result.summary) {
-				this.component.explain = { summary: result.summary };
 			} else {
-				this.component.explain = undefined;
+				this.component.explain = result;
 			}
 		} catch (_ex) {
 			this.component.explain = { error: { message: 'Error retrieving content' } };

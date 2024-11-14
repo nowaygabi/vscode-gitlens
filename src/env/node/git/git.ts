@@ -3,9 +3,9 @@ import { spawn } from 'child_process';
 import { accessSync } from 'fs';
 import { join as joinPath } from 'path';
 import * as process from 'process';
+import { hrtime } from '@env/hrtime';
 import type { CancellationToken, OutputChannel } from 'vscode';
 import { env, Uri, window, workspace } from 'vscode';
-import { hrtime } from '@env/hrtime';
 import { GlyphChars } from '../../../constants';
 import type { GitCommandOptions, GitSpawnOptions } from '../../../git/commandOptions';
 import { GitErrorHandling } from '../../../git/commandOptions';
@@ -22,6 +22,8 @@ import {
 	PushErrorReason,
 	StashPushError,
 	StashPushErrorReason,
+	TagError,
+	TagErrorReason,
 	WorkspaceUntrustedError,
 } from '../../../git/errors';
 import type { GitDir } from '../../../git/gitProvider';
@@ -32,18 +34,18 @@ import type { GitUser } from '../../../git/models/user';
 import { parseGitBranchesDefaultFormat } from '../../../git/parsers/branchParser';
 import { parseGitLogAllFormat, parseGitLogDefaultFormat } from '../../../git/parsers/logParser';
 import { parseGitRemoteUrl } from '../../../git/parsers/remoteParser';
-import { parseGitTagsDefaultFormat } from '../../../git/parsers/tagParser';
 import { splitAt } from '../../../system/array';
-import { configuration } from '../../../system/configuration';
 import { log } from '../../../system/decorators/log';
 import { join } from '../../../system/iterable';
 import { Logger } from '../../../system/logger';
 import { slowCallWarningThreshold } from '../../../system/logger.constants';
 import { getLoggableScopeBlockOverride, getLogScope } from '../../../system/logger.scope';
-import { dirname, isAbsolute, isFolderGlob, joinPaths, normalizePath, splitPath } from '../../../system/path';
+import { dirname, isAbsolute, isFolderGlob, joinPaths, normalizePath } from '../../../system/path';
 import { getDurationMilliseconds } from '../../../system/string';
-import { getEditorCommand } from '../../../system/utils';
 import { compare, fromString } from '../../../system/version';
+import { configuration } from '../../../system/vscode/configuration';
+import { splitPath } from '../../../system/vscode/path';
+import { getEditorCommand } from '../../../system/vscode/utils';
 import { ensureGitTerminal } from '../../../terminal';
 import type { GitLocation } from './locator';
 import type { RunOptions } from './shell';
@@ -76,6 +78,7 @@ export const GitErrors = {
 	changesWouldBeOverwritten: /Your local changes to the following files would be overwritten/i,
 	commitChangesFirst: /Please, commit your changes before you can/i,
 	conflict: /^CONFLICT \([^)]+\): \b/m,
+	failedToDeleteDirectoryNotEmpty: /failed to delete '(.*?)': Directory not empty/i,
 	invalidObjectName: /invalid object name: (.*)\s/i,
 	invalidObjectNameList: /could not open object name list: (.*)\s/i,
 	noFastForward: /\(non-fast-forward\)/i,
@@ -98,6 +101,10 @@ export const GitErrors = {
 	tagConflict: /! \[rejected\].*\(would clobber existing tag\)/m,
 	unmergedFiles: /is not possible because you have unmerged files/i,
 	unstagedChanges: /You have unstaged changes/i,
+	tagAlreadyExists: /tag .* already exists/i,
+	tagNotFound: /tag .* not found/i,
+	invalidTagName: /invalid tag name/i,
+	remoteRejected: /rejected because the remote contains work/i,
 };
 
 const GitWarnings = {
@@ -157,6 +164,14 @@ function getStdinUniqueKey(): number {
 
 type ExitCodeOnlyGitCommandOptions = GitCommandOptions & { exitCodeOnly: true };
 export type PushForceOptions = { withLease: true; ifIncludes?: boolean } | { withLease: false; ifIncludes?: never };
+
+const tagErrorAndReason: [RegExp, TagErrorReason][] = [
+	[GitErrors.tagAlreadyExists, TagErrorReason.TagAlreadyExists],
+	[GitErrors.tagNotFound, TagErrorReason.TagNotFound],
+	[GitErrors.invalidTagName, TagErrorReason.InvalidTagName],
+	[GitErrors.permissionDenied, TagErrorReason.PermissionDenied],
+	[GitErrors.remoteRejected, TagErrorReason.RemoteRejected],
+];
 
 export class Git {
 	/** Map of running git commands -- avoids running duplicate overlaping commands */
@@ -346,8 +361,8 @@ export class Git {
 
 	// Git commands
 
-	add(repoPath: string | undefined, pathspec: string) {
-		return this.git<string>({ cwd: repoPath }, 'add', '-A', '--', pathspec);
+	add(repoPath: string | undefined, pathspecs: string[], ...args: string[]) {
+		return this.git<string>({ cwd: repoPath }, 'add', ...args, '--', ...pathspecs);
 	}
 
 	apply(repoPath: string | undefined, patch: string, options: { allowConflicts?: boolean } = {}) {
@@ -475,7 +490,7 @@ export class Git {
 				params.push('--contents', '-');
 
 				// Get the file contents for the staged version using `:`
-				stdin = await this.show<string>(repoPath, fileName, ':');
+				stdin = await this.show__content<string>(repoPath, fileName, ':');
 			} else {
 				params.push(options.ref);
 			}
@@ -503,6 +518,10 @@ export class Git {
 
 			throw ex;
 		}
+	}
+
+	branch(repoPath: string, ...args: string[]) {
+		return this.git<string>({ cwd: repoPath }, 'branch', ...args);
 	}
 
 	branch__set_upstream(repoPath: string, branch: string, remote: string, remoteBranch: string) {
@@ -1565,8 +1584,8 @@ export class Git {
 		return this.git<string>({ cwd: repoPath }, 'remote', 'get-url', remote);
 	}
 
-	reset(repoPath: string | undefined, fileName: string) {
-		return this.git<string>({ cwd: repoPath }, 'reset', '-q', '--', fileName);
+	reset(repoPath: string | undefined, pathspecs: string[]) {
+		return this.git<string>({ cwd: repoPath }, 'reset', '-q', '--', ...pathspecs);
 	}
 
 	async rev_list(
@@ -1808,16 +1827,9 @@ export class Git {
 					'--is-bare-repository',
 				);
 				if (data.trim() === 'true') {
-					// If we are in a bare clone, then the common dir is the git dir
-					data = await this.git<string>(
-						{ cwd: cwd, errors: GitErrorHandling.Ignore },
-						'rev-parse',
-						'--git-common-dir',
-					);
-					data = data.trim();
-					if (data.length) {
-						return [true, normalizePath((data === '.' ? cwd : data).trimStart().replace(/[\r|\n]+$/, ''))];
-					}
+					const result = await this.rev_parse__git_dir(cwd);
+					const repoPath = result?.commonPath ?? result?.path;
+					if (repoPath?.length) return [true, repoPath];
 				}
 			}
 
@@ -1855,51 +1867,7 @@ export class Git {
 		return data.length === 0 ? undefined : data.trim();
 	}
 
-	async show<TOut extends string | Buffer>(
-		repoPath: string | undefined,
-		fileName: string,
-		ref: string,
-		options: {
-			encoding?: 'binary' | 'ascii' | 'utf8' | 'utf16le' | 'ucs2' | 'base64' | 'latin1' | 'hex' | 'buffer';
-		} = {},
-	): Promise<TOut | undefined> {
-		const [file, root] = splitPath(fileName, repoPath, true);
-
-		if (isUncommittedStaged(ref)) {
-			ref = ':';
-		}
-		if (isUncommitted(ref)) throw new Error(`ref=${ref} is uncommitted`);
-
-		const opts: GitCommandOptions = {
-			configs: gitLogDefaultConfigs,
-			cwd: root,
-			encoding: options.encoding ?? 'utf8',
-			errors: GitErrorHandling.Throw,
-		};
-		const args = ref.endsWith(':') ? `${ref}./${file}` : `${ref}:./${file}`;
-
-		try {
-			const data = await this.git<TOut>(opts, 'show', '--textconv', args, '--');
-			return data;
-		} catch (ex) {
-			const msg: string = ex?.toString() ?? '';
-			if (ref === ':' && GitErrors.badRevision.test(msg)) {
-				return this.show<TOut>(repoPath, fileName, 'HEAD:', options);
-			}
-
-			if (
-				GitErrors.badRevision.test(msg) ||
-				GitWarnings.notFound.test(msg) ||
-				GitWarnings.foundButNotInRevision.test(msg)
-			) {
-				return undefined;
-			}
-
-			return defaultExceptionHandler(ex, opts.cwd) as TOut;
-		}
-	}
-
-	show2(
+	show(
 		repoPath: string,
 		options?: { cancellation?: CancellationToken; configs?: readonly string[] },
 		...args: string[]
@@ -1916,36 +1884,48 @@ export class Git {
 		);
 	}
 
-	show__diff(
-		repoPath: string,
+	async show__content<TOut extends string | Buffer>(
+		repoPath: string | undefined,
 		fileName: string,
 		ref: string,
-		originalFileName?: string,
-		{ similarityThreshold }: { similarityThreshold?: number | null } = {},
-	) {
-		const params = [
-			'show',
-			`-M${similarityThreshold == null ? '' : `${similarityThreshold}%`}`,
-			'--format=',
-			'--minimal',
-			'-U0',
-			ref,
-			'--',
-			fileName,
-		];
-		if (originalFileName != null && originalFileName.length !== 0) {
-			params.push(originalFileName);
+		options?: {
+			encoding?: 'binary' | 'ascii' | 'utf8' | 'utf16le' | 'ucs2' | 'base64' | 'latin1' | 'hex' | 'buffer';
+		},
+	): Promise<TOut | undefined> {
+		const [file, root] = splitPath(fileName, repoPath, true);
+
+		if (isUncommittedStaged(ref)) {
+			ref = ':';
 		}
+		if (isUncommitted(ref)) throw new Error(`ref=${ref} is uncommitted`);
 
-		return this.git<string>({ cwd: repoPath }, ...params);
-	}
+		const opts: GitCommandOptions = {
+			configs: gitLogDefaultConfigs,
+			cwd: root,
+			encoding: options?.encoding ?? 'utf8',
+			errors: GitErrorHandling.Throw,
+		};
+		const args = ref.endsWith(':') ? `${ref}./${file}` : `${ref}:./${file}`;
 
-	show__name_status(repoPath: string, fileName: string, ref: string) {
-		return this.git<string>({ cwd: repoPath }, 'show', '--name-status', '--format=', '-z', ref, '--', fileName);
-	}
+		try {
+			const data = await this.git<TOut>(opts, 'show', '--textconv', args, '--');
+			return data;
+		} catch (ex) {
+			const msg: string = ex?.toString() ?? '';
+			if (ref === ':' && GitErrors.badRevision.test(msg)) {
+				return this.show__content<TOut>(repoPath, fileName, 'HEAD:', options);
+			}
 
-	show_ref__tags(repoPath: string) {
-		return this.git<string>({ cwd: repoPath, errors: GitErrorHandling.Ignore }, 'show-ref', '--tags');
+			if (
+				GitErrors.badRevision.test(msg) ||
+				GitWarnings.notFound.test(msg) ||
+				GitWarnings.foundButNotInRevision.test(msg)
+			) {
+				return undefined;
+			}
+
+			return defaultExceptionHandler(ex, opts.cwd) as TOut;
+		}
 	}
 
 	stash__apply(repoPath: string, stashName: string, deleteAfter: boolean): Promise<string | undefined> {
@@ -2111,8 +2091,19 @@ export class Git {
 		return this.git<string>({ cwd: repoPath }, 'symbolic-ref', '--short', ref);
 	}
 
-	tag(repoPath: string) {
-		return this.git<string>({ cwd: repoPath }, 'tag', '-l', `--format=${parseGitTagsDefaultFormat}`);
+	async tag(repoPath: string, ...args: string[]) {
+		try {
+			const output = await this.git<string>({ cwd: repoPath }, 'tag', ...args);
+			return output;
+		} catch (ex) {
+			const msg: string = ex?.toString() ?? '';
+			for (const [error, reason] of tagErrorAndReason) {
+				if (error.test(msg) || error.test(ex.stderr ?? '')) {
+					throw new TagError(reason, ex);
+				}
+			}
+			throw new TagError(TagErrorReason.Other, ex);
+		}
 	}
 
 	worktree__add(

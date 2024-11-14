@@ -5,8 +5,8 @@ import type { Container } from '../container';
 import { GitUri } from '../git/gitUri';
 import { showGenericErrorMessage } from '../messages';
 import { getBestRepositoryOrShowPicker } from '../quickpicks/repositoryPicker';
-import { command, executeCoreCommand } from '../system/command';
 import { Logger } from '../system/logger';
+import { command, executeCoreCommand } from '../system/vscode/command';
 import { ActiveEditorCommand, getCommandUri } from './base';
 
 export interface GenerateCommitMessageCommandArgs {
@@ -16,7 +16,7 @@ export interface GenerateCommitMessageCommandArgs {
 @command()
 export class GenerateCommitMessageCommand extends ActiveEditorCommand {
 	constructor(private readonly container: Container) {
-		super(Commands.GenerateCommitMessage);
+		super([Commands.GenerateCommitMessage, Commands.GenerateCommitMessageScm]);
 	}
 
 	async execute(editor?: TextEditor, uri?: Uri, args?: GenerateCommitMessageCommandArgs) {
@@ -52,7 +52,9 @@ export class GenerateCommitMessageCommand extends ActiveEditorCommand {
 			if (message == null) return;
 
 			void executeCoreCommand('workbench.view.scm');
-			scmRepo.inputBox.value = currentMessage ? `${currentMessage}\n\n${message}` : message;
+			scmRepo.inputBox.value = `${currentMessage ? `${currentMessage}\n\n` : ''}${message.summary}\n\n${
+				message.body
+			}`;
 		} catch (ex) {
 			Logger.error(ex, 'GenerateCommitMessageCommand');
 

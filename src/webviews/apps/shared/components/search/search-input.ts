@@ -5,12 +5,18 @@ import { searchOperationHelpRegex, searchOperatorsToLongFormMap } from '../../..
 import type { Deferrable } from '../../../../../system/function';
 import { debounce } from '../../../../../system/function';
 import { GlElement } from '../element';
-import type { PopMenu } from '../overlays/pop-menu';
+import type { GlPopover } from '../overlays/popover';
 import '../code-icon';
+import '../menu';
+import '../overlays/popover';
 import '../overlays/tooltip';
 
 export interface SearchNavigationEventDetail {
 	direction: 'first' | 'previous' | 'next' | 'last';
+}
+
+export interface SearchModeChangeEventDetail {
+	searchMode: 'normal' | 'filter';
 }
 
 declare global {
@@ -21,6 +27,7 @@ declare global {
 	interface GlobalEventHandlersEventMap {
 		'gl-search-inputchange': CustomEvent<SearchQuery>;
 		'gl-search-navigate': CustomEvent<SearchNavigationEventDetail>;
+		'gl-search-modechange': CustomEvent<SearchModeChangeEventDetail>;
 	}
 }
 
@@ -258,10 +265,6 @@ export class GlSearchInput extends GlElement {
 			padding: 0 0.5rem;
 		}
 
-		menu-list {
-			padding-bottom: 0.5rem;
-		}
-
 		.menu-button {
 			display: block;
 			width: 100%;
@@ -284,10 +287,19 @@ export class GlSearchInput extends GlElement {
 			padding: 0px 4px;
 			font-family: var(--vscode-editor-font-family);
 		}
+
+		.popover {
+			margin-left: -0.25rem;
+		}
+		.popover::part(body) {
+			padding: 0 0 0.5rem 0;
+			font-size: var(--vscode-font-size);
+			background-color: var(--vscode-menu-background);
+		}
 	`;
 
 	@query('input') input!: HTMLInputElement;
-	@query('pop-menu') popmenu!: PopMenu;
+	@query('gl-popover') popoverEl!: GlPopover;
 
 	@state() errorMessage = '';
 	@state() helpType?: SearchOperatorsLongForm;
@@ -295,6 +307,7 @@ export class GlSearchInput extends GlElement {
 	@property({ type: String }) label = 'Search';
 	@property({ type: String }) placeholder = 'Search...';
 	@property({ type: String }) value = '';
+	@property({ type: Boolean }) filter = false;
 	@property({ type: Boolean }) matchAll = false;
 	@property({ type: Boolean }) matchCase = false;
 	@property({ type: Boolean }) matchRegex = true;
@@ -308,7 +321,7 @@ export class GlSearchInput extends GlElement {
 	}
 
 	handleFocus(_e: Event) {
-		this.popmenu.close();
+		void this.popoverEl.hide();
 	}
 
 	handleClear(_e: Event) {
@@ -373,6 +386,12 @@ export class GlSearchInput extends GlElement {
 		this.debouncedOnSearchChanged();
 	}
 
+	handleFilter(_e: Event) {
+		this.filter = !this.filter;
+		this.emit('gl-search-modechange', { searchMode: this.filter ? 'filter' : 'normal' });
+		this.debouncedOnSearchChanged();
+	}
+
 	handleKeyup(_e: KeyboardEvent) {
 		this.updateHelpText();
 	}
@@ -416,6 +435,7 @@ export class GlSearchInput extends GlElement {
 	private onSearchChanged() {
 		const search: SearchQuery = {
 			query: this.value,
+			filter: this.filter,
 			matchAll: this.matchAll,
 			matchCase: this.matchCase,
 			matchRegex: this.matchRegex,
@@ -443,72 +463,75 @@ export class GlSearchInput extends GlElement {
 	}
 
 	override render() {
-		return html`<gl-tooltip hoist placement="top" style="margin-left: -0.25rem;"
-				><pop-menu>
-					<button type="button" class="action-button" slot="trigger" aria-label="${this.label}">
+		return html`<gl-popover
+				class="popover"
+				trigger="focus"
+				hoist
+				placement="bottom-start"
+				.arrow=${false}
+				distance="0"
+			>
+				<gl-tooltip hoist placement="top" slot="anchor">
+					<button type="button" class="action-button" aria-label="${this.label}">
 						<code-icon icon="search" aria-hidden="true"></code-icon>
 						<code-icon class="action-button__more" icon="chevron-down" aria-hidden="true"></code-icon>
 					</button>
-					<menu-list slot="content">
-						<menu-label>Search by</menu-label>
-						<menu-item role="none">
-							<button class="menu-button" type="button" @click="${() => this.handleInsertToken('@me')}">
-								My changes <small>@me</small>
-							</button>
-						</menu-item>
-						<menu-item role="none">
-							<button
-								class="menu-button"
-								type="button"
-								@click="${() => this.handleInsertToken('message:')}"
-							>
-								Message <small>message: or =:</small>
-							</button>
-						</menu-item>
-						<menu-item role="none">
-							<button
-								class="menu-button"
-								type="button"
-								@click="${() => this.handleInsertToken('author:')}"
-							>
-								Author <small>author: or @:</small>
-							</button>
-						</menu-item>
-						<menu-item role="none">
-							<button
-								class="menu-button"
-								type="button"
-								@click="${() => this.handleInsertToken('commit:')}"
-							>
-								Commit SHA <small>commit: or #:</small>
-							</button>
-						</menu-item>
-						<menu-item role="none">
-							<button class="menu-button" type="button" @click="${() => this.handleInsertToken('file:')}">
-								File <small>file: or ?:</small>
-							</button>
-						</menu-item>
-						<menu-item role="none">
-							<button
-								class="menu-button"
-								type="button"
-								@click="${() => this.handleInsertToken('change:')}"
-							>
-								Change <small>change: or ~:</small>
-							</button>
-						</menu-item>
-						<menu-item role="none">
-							<button
-								class="menu-button"
-								type="button"
-								@click="${() => this.handleInsertToken('type:stash')}"
-							>
-								Type <small>type:stash or is:stash</small>
-							</button>
-						</menu-item>
-					</menu-list>
-				</pop-menu>
-				<span slot="content">${this.label}</span>
+					<span slot="content">${this.label}</span>
+				</gl-tooltip>
+				<div slot="content">
+					<menu-label>Search by</menu-label>
+					<menu-item role="none">
+						<button class="menu-button" type="button" @click="${() => this.handleInsertToken('@me')}">
+							My changes <small>@me</small>
+						</button>
+					</menu-item>
+					<menu-item role="none">
+						<button class="menu-button" type="button" @click="${() => this.handleInsertToken('message:')}">
+							Message <small>message: or =:</small>
+						</button>
+					</menu-item>
+					<menu-item role="none">
+						<button class="menu-button" type="button" @click="${() => this.handleInsertToken('author:')}">
+							Author <small>author: or @:</small>
+						</button>
+					</menu-item>
+					<menu-item role="none">
+						<button class="menu-button" type="button" @click="${() => this.handleInsertToken('commit:')}">
+							Commit SHA <small>commit: or #:</small>
+						</button>
+					</menu-item>
+					<menu-item role="none">
+						<button class="menu-button" type="button" @click="${() => this.handleInsertToken('file:')}">
+							File <small>file: or ?:</small>
+						</button>
+					</menu-item>
+					<menu-item role="none">
+						<button class="menu-button" type="button" @click="${() => this.handleInsertToken('change:')}">
+							Change <small>change: or ~:</small>
+						</button>
+					</menu-item>
+					<menu-item role="none">
+						<button
+							class="menu-button"
+							type="button"
+							@click="${() => this.handleInsertToken('type:stash')}"
+						>
+							Type <small>type:stash or is:stash</small>
+						</button>
+					</menu-item>
+				</div>
+			</gl-popover>
+			<gl-tooltip hoist placement="top" content="Filter Commits">
+				<button
+					class="action-button"
+					type="button"
+					role="checkbox"
+					aria-label="Filter Commits"
+					aria-checked="${this.filter}"
+					@click="${this.handleFilter}"
+				>
+					<code-icon icon="list-filter"></code-icon>
+				</button>
 			</gl-tooltip>
 			<div class="field">
 				<input
@@ -598,7 +621,6 @@ export class GlSearchInput extends GlElement {
 						?disabled="${!this.matchRegex}"
 						aria-checked="${this.matchCaseOverride}"
 						@click="${this.handleMatchCase}"
-						@focus="${this.handleFocus}"
 					>
 						<code-icon icon="case-sensitive"></code-icon>
 					</button>
@@ -611,7 +633,6 @@ export class GlSearchInput extends GlElement {
 						aria-label="Use Regular Expression"
 						aria-checked="${this.matchRegex}"
 						@click="${this.handleMatchRegex}"
-						@focus="${this.handleFocus}"
 					>
 						<code-icon icon="regex"></code-icon>
 					</button>

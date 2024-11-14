@@ -7,11 +7,11 @@ import type { Container } from '../container';
 import { unknownGitUri } from '../git/gitUri';
 import type { Repository } from '../git/models/repository';
 import { ensurePlusFeaturesEnabled } from '../plus/gk/utils';
-import { executeCommand } from '../system/command';
-import { configuration } from '../system/configuration';
 import { gate } from '../system/decorators/gate';
 import { debug } from '../system/decorators/log';
-import { openUrl, openWorkspace } from '../system/utils';
+import { executeCommand } from '../system/vscode/command';
+import { configuration } from '../system/vscode/configuration';
+import { openUrl, openWorkspace } from '../system/vscode/utils';
 import { ViewNode } from './nodes/abstract/viewNode';
 import { MessageNode } from './nodes/common';
 import { RepositoriesNode } from './nodes/repositoriesNode';
@@ -144,8 +144,6 @@ export class WorkspacesView extends ViewBase<'workspaces', WorkspacesViewNode, W
 	}
 
 	protected registerCommands(): Disposable[] {
-		void this.container.viewCommands;
-
 		return [
 			registerViewCommand(this.getQualifiedCommand('info'), () => openUrl(urls.workspaces), this),
 			registerViewCommand(

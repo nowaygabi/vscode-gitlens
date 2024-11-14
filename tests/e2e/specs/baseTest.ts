@@ -1,10 +1,11 @@
-import { test as base, type Page, _electron } from '@playwright/test';
-import { downloadAndUnzipVSCode } from '@vscode/test-electron/out/download';
-export { expect } from '@playwright/test';
-import path from 'path';
-import os from 'os';
 import fs from 'fs';
-import { spawnSync } from 'child_process';
+import os from 'os';
+import path from 'path';
+import type { Page } from '@playwright/test';
+import { _electron, test as base } from '@playwright/test';
+import { downloadAndUnzipVSCode } from '@vscode/test-electron/out/download';
+
+export { expect } from '@playwright/test';
 
 export type TestOptions = {
 	vscodeVersion: string;
@@ -14,6 +15,8 @@ type TestFixtures = TestOptions & {
 	page: Page;
 	createTmpDir: () => Promise<string>;
 };
+
+export const MaxTimeout = 10000;
 
 let testProjectPath: string;
 export const test = base.extend<TestFixtures>({
@@ -60,6 +63,11 @@ export const test = base.extend<TestFixtures>({
 			await fs.promises.cp(logPath, logOutputPath, { recursive: true });
 		}
 	},
+	// Next line is necessary because of how Playwright works. It expect a destructured pattern here:
+	// https://github.com/microsoft/playwright/issues/14590#issuecomment-1911734641
+	// https://github.com/microsoft/playwright/issues/21566#issuecomment-1464858235
+
+	// eslint-disable-next-line no-empty-pattern
 	createTmpDir: async ({}, use) => {
 		const tempDirs: string[] = [];
 		await use(async () => {
@@ -67,6 +75,8 @@ export const test = base.extend<TestFixtures>({
 			tempDirs.push(tempDir);
 			return tempDir;
 		});
-		for (const tempDir of tempDirs) await fs.promises.rm(tempDir, { recursive: true });
+		for (const tempDir of tempDirs) {
+			await fs.promises.rm(tempDir, { recursive: true });
+		}
 	},
 });

@@ -1,5 +1,5 @@
 import type { Command, Selection } from 'vscode';
-import { MarkdownString, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+import { TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 import type { DiffWithPreviousCommandArgs } from '../../commands/diffWithPrevious';
 import { Schemes } from '../../constants';
 import { Commands } from '../../constants.commands';
@@ -11,9 +11,11 @@ import type { GitCommit } from '../../git/models/commit';
 import type { GitFile } from '../../git/models/file';
 import { getGitFileStatusIcon } from '../../git/models/file';
 import type { GitRevisionReference } from '../../git/models/reference';
-import { joinPaths, relativeDir } from '../../system/path';
+import { joinPaths } from '../../system/path';
+import { relativeDir } from '../../system/vscode/path';
 import type { ViewsWithCommits, ViewsWithStashes } from '../viewBase';
 import { createViewDecorationUri } from '../viewDecorationProvider';
+import { getFileTooltipMarkdown } from './abstract/viewFileNode';
 import type { ViewNode } from './abstract/viewNode';
 import { ContextValues, getViewNodeId } from './abstract/viewNode';
 import { ViewRefFileNode } from './abstract/viewRefNode';
@@ -102,7 +104,7 @@ export abstract class CommitFileNodeBase<
 				light: this.view.container.context.asAbsolutePath(joinPaths('images', 'light', icon)),
 			};
 		}
-		item.tooltip = this.tooltip;
+		item.tooltip = getFileTooltipMarkdown(this.file);
 		item.command = this.getCommand();
 
 		// Only cache the label for a single refresh (its only cached because it is used externally for sorting)
@@ -152,19 +154,6 @@ export abstract class CommitFileNodeBase<
 	set relativePath(value: string | undefined) {
 		this._relativePath = value;
 		this._label = undefined;
-	}
-
-	private get tooltip() {
-		const tooltip = StatusFileFormatter.fromTemplate(
-			`\${file}\${'&nbsp;&nbsp;\u2022&nbsp;&nbsp;'changesDetail}\${'&nbsp;\\\n'directory}&nbsp;\n\n\${status}\${ (originalPath)}`,
-			this.file,
-		);
-
-		const markdown = new MarkdownString(tooltip, true);
-		markdown.supportHtml = true;
-		markdown.isTrusted = true;
-
-		return markdown;
 	}
 
 	override getCommand(): Command | undefined {

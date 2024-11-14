@@ -1,25 +1,32 @@
-import type { VSCodeAIModels } from './ai/vscodeProvider';
-import type { SupportedAIModels } from './constants.ai';
-import type { ResourceDescriptor } from './plus/integrations/integration';
+import type { SupportedAIModels, VSCodeAIModels } from './constants.ai';
+import type { GroupableTreeViewTypes } from './constants.views';
 import type { DateTimeFormat } from './system/date';
 import type { LogLevel } from './system/logger.constants';
 
 export interface Config {
 	readonly ai: {
-		readonly experimental: {
-			readonly generateCommitMessage: {
-				readonly enabled: boolean;
-			};
-			readonly model: SupportedAIModels | null;
-			readonly openai: {
-				readonly url: string | null;
-			};
-			readonly vscode: {
-				readonly model: VSCodeAIModels | null;
-			};
+		readonly explainChanges: {
+			readonly customInstructions: string;
+		};
+		readonly generateCommitMessage: {
+			readonly customInstructions: string;
+			readonly enabled: boolean;
+		};
+		readonly generateCloudPatchMessage: {
+			readonly customInstructions: string;
+		};
+		readonly generateCodeSuggestMessage: {
+			readonly customInstructions: string;
+		};
+		readonly model: SupportedAIModels | null;
+		readonly openai: {
+			readonly url: string | null;
+		};
+		readonly vscode: {
+			readonly model: VSCodeAIModels | null;
 		};
 	};
-	readonly autolinks: AutolinkReference[] | null;
+	readonly autolinks: AutolinkConfig[] | null;
 	readonly blame: {
 		readonly avatars: boolean;
 		readonly compact: boolean;
@@ -81,18 +88,19 @@ export interface Config {
 	readonly defaultGravatarsStyle: GravatarDefaultStyle;
 	readonly defaultTimeFormat: DateTimeFormat | (string & object) | null;
 	readonly detectNestedRepositories: boolean;
-	readonly experimental: {
-		readonly generateCommitMessagePrompt: string;
-		readonly generateCloudPatchMessagePrompt: string;
-		readonly generateCodeSuggestionMessagePrompt: string;
-	};
 	readonly fileAnnotations: {
 		readonly preserveWhileEditing: boolean;
 		readonly command: string | null;
 		readonly dismissOnEscape: boolean;
 	};
+	readonly home: {
+		readonly preview: {
+			readonly enabled: boolean;
+		};
+	};
 	readonly launchpad: {
 		readonly allowMultiple: boolean;
+		readonly includedOrganizations: string[];
 		readonly ignoredOrganizations: string[];
 		readonly ignoredRepositories: string[];
 		readonly staleThreshold: number | null;
@@ -198,7 +206,6 @@ export interface Config {
 		readonly showDetailsView: 'open' | 'selection' | false;
 	};
 	readonly remotes: RemotesConfig[] | null;
-	readonly showWelcomeOnInstall: boolean;
 	readonly showWhatsNewAfterUpgrades: boolean;
 	readonly sortBranchesBy: BranchSorting;
 	readonly sortContributorsBy: ContributorSorting;
@@ -252,18 +259,17 @@ export interface Config {
 }
 
 export type AnnotationsToggleMode = 'file' | 'window';
-export type AutolinkType = 'issue' | 'pullrequest';
 
-export interface AutolinkReference {
+export interface AutolinkConfig {
+	/** Short prefix to match to generate autolinks for the external resource */
 	readonly prefix: string;
+	/** URL of the external resource to link to */
 	readonly url: string;
-	readonly title?: string;
-	readonly alphanumeric?: boolean;
-	readonly ignoreCase?: boolean;
-
-	readonly type?: AutolinkType;
-	readonly description?: string;
-	readonly descriptor?: ResourceDescriptor;
+	/** Whether alphanumeric characters should be allowed in `<num>` */
+	readonly alphanumeric: boolean;
+	/** Whether case should be ignored when matching the prefix */
+	readonly ignoreCase: boolean;
+	readonly title: string | null;
 }
 
 export type BlameHighlightLocations = 'gutter' | 'line' | 'overview';
@@ -616,6 +622,12 @@ export interface ViewsCommonConfig {
 			readonly label: string;
 			readonly description: string;
 			readonly tooltip: string;
+		};
+	};
+	readonly scm: {
+		grouped: {
+			readonly default: GroupableTreeViewTypes;
+			readonly views: Record<GroupableTreeViewTypes, boolean>;
 		};
 	};
 	readonly openChangesInMultiDiffEditor: boolean;

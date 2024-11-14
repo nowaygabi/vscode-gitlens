@@ -2,8 +2,8 @@
 import { getScopedCounter } from '../../../system/counter';
 import { debug, logName } from '../../../system/decorators/log';
 import { getLogScope, getNewLogScope } from '../../../system/logger.scope';
-import type { Serialized } from '../../../system/serialize';
 import { maybeStopWatch } from '../../../system/stopwatch';
+import type { Serialized } from '../../../system/vscode/serialize';
 import type { IpcCallParamsType, IpcCallResponseParamsType, IpcCommand, IpcMessage, IpcRequest } from '../../protocol';
 import { DOM } from './dom';
 import type { Disposable, Event } from './events';
@@ -76,8 +76,10 @@ export class HostIpc implements Disposable {
 		this._onReceiveMessage.fire(msg);
 	}
 
+	sendCommand<T extends IpcCommand>(commandType: T, params?: never): void;
+	sendCommand<T extends IpcCommand<unknown>>(commandType: T, params: IpcCallParamsType<T>): void;
 	@debug<HostIpc['sendCommand']>({ args: { 0: c => c.method, 1: false } })
-	sendCommand<T extends IpcCommand<unknown>>(commandType: T, params: IpcCallParamsType<T>): void {
+	sendCommand<T extends IpcCommand | IpcCommand<unknown>>(commandType: T, params?: IpcCallParamsType<T>): void {
 		const id = nextIpcId();
 		// this.log(`${this.appName}.sendCommand(${id}): name=${command.method}`);
 

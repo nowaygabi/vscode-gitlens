@@ -16,13 +16,14 @@ import type { GitUri } from '../git/gitUri';
 import { isGitUri } from '../git/gitUri';
 import type { RepositoryChangeEvent } from '../git/models/repository';
 import { RepositoryChange, RepositoryChangeComparisonMode } from '../git/models/repository';
-import { configuration } from '../system/configuration';
-import { setContext } from '../system/context';
 import { debug } from '../system/decorators/log';
 import { once } from '../system/event';
 import type { Deferrable } from '../system/function';
 import { debounce } from '../system/function';
-import { findTextDocument, getResourceContextKeyValue, isVisibleDocument } from '../system/utils';
+import { configuration } from '../system/vscode/configuration';
+import { setContext } from '../system/vscode/context';
+import { UriSet } from '../system/vscode/uriMap';
+import { findTextDocument, isVisibleDocument } from '../system/vscode/utils';
 import type { TrackedGitDocument } from './trackedDocument';
 import { createTrackedGitDocument } from './trackedDocument';
 
@@ -414,33 +415,33 @@ export class GitDocumentTracker implements Disposable {
 		(tracked ?? (await docPromise))?.dispose();
 	}
 
-	private readonly _openUrisBlameable = new Set<string>();
-	private readonly _openUrisTracked = new Set<string>();
+	private readonly _openUrisBlameable = new UriSet();
+	private readonly _openUrisTracked = new UriSet();
 	private _updateContextDebounced: Deferrable<() => void> | undefined;
 
 	updateContext(uri: Uri, blameable: boolean, tracked: boolean) {
 		let changed = false;
 
-		function updateContextCore(this: GitDocumentTracker, key: string, blameable: boolean, tracked: boolean) {
+		function updateContextCore(this: GitDocumentTracker, uri: Uri, blameable: boolean, tracked: boolean) {
 			if (tracked) {
-				if (!this._openUrisTracked.has(key)) {
+				if (!this._openUrisTracked.has(uri)) {
 					changed = true;
-					this._openUrisTracked.add(key);
+					this._openUrisTracked.add(uri);
 				}
-			} else if (this._openUrisTracked.has(key)) {
+			} else if (this._openUrisTracked.has(uri)) {
 				changed = true;
-				this._openUrisTracked.delete(key);
+				this._openUrisTracked.delete(uri);
 			}
 
 			if (blameable) {
-				if (!this._openUrisBlameable.has(key)) {
+				if (!this._openUrisBlameable.has(uri)) {
 					changed = true;
 
-					this._openUrisBlameable.add(key);
+					this._openUrisBlameable.add(uri);
 				}
-			} else if (this._openUrisBlameable.has(key)) {
+			} else if (this._openUrisBlameable.has(uri)) {
 				changed = true;
-				this._openUrisBlameable.delete(key);
+				this._openUrisBlameable.delete(uri);
 			}
 
 			if (!changed) return;
@@ -452,13 +453,7 @@ export class GitDocumentTracker implements Disposable {
 			this._updateContextDebounced();
 		}
 
-		const key = getResourceContextKeyValue(uri);
-		if (typeof key !== 'string') {
-			void key.then(u => updateContextCore.call(this, u, blameable, tracked));
-			return;
-		}
-
-		updateContextCore.call(this, key, blameable, tracked);
+		updateContextCore.call(this, uri, blameable, tracked);
 	}
 
 	private fireDocumentDirtyStateChanged(e: DocumentDirtyStateChangeEvent) {
@@ -500,7 +495,8 @@ export class GitDocumentTracker implements Disposable {
 	}) {
 		if (this._documentMap.size === 0) return;
 
-		for await (const doc of this._documentMap.values()) {
+		for (const d of this._documentMap.values()) {
+			const doc = await d;
 			const repoPath = doc.uri.repoPath?.toLocaleLowerCase();
 			if (repoPath == null) continue;
 

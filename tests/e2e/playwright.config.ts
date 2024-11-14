@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
-import { TestOptions } from './tests/baseTest';
 
+// eslint-disable-next-line import-x/no-default-export
 export default defineConfig({
 	use: {
 		headless: true, // Ensure headless mode is enabled
@@ -13,6 +13,7 @@ export default defineConfig({
 		timeout: 60000, // 1 minute
 	},
 	globalSetup: './setup',
+	outputDir: '../../out/test-results',
 	projects: [
 		{
 			name: 'VSCode stable',
@@ -21,4 +22,5 @@ export default defineConfig({
 			},
 		},
 	],
+	testMatch: 'specs/*.test.ts',
 });

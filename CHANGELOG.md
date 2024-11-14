@@ -6,6 +6,113 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+### Added
+
+- Adds new ability to search for a GitHub PR in the _Launchpad;_ closes [#3543](https://github.com/gitkraken/vscode-gitlens/issues/3543)
+- Adds _Start Work_ command that opens a quick pick to initiate different flows for starting work (creating a branch).; closes [#3621](https://github.com/gitkraken/vscode-gitlens/issues/3621)
+- Adds a new _Filter Commits_ button to the Commit Graph toolbar. When toggled while searching the graph, it will be filtered to show only commits matching the search query
+- Adds support for deep links to GitLens features and views:
+  - Adds support for deep links to the GitLens Walkthrough; closes [#3677](https://github.com/gitkraken/vscode-gitlens/issues/3677)
+  - Adds support for deep links to Launchpad; closes [#3678](https://github.com/gitkraken/vscode-gitlens/issues/3678)
+  - Adds support for deep links to the Commit Graph, Worktrees View, Inspect View, and Cloud Patches View; closes [#3703](https://github.com/gitkraken/vscode-gitlens/issues/3703)
+  - Adds new walkthrough (onboarding checklist); closes [#3656](https://github.com/gitkraken/vscode-gitlens/issues/3656)
+- Adds a Feature Preview of 3 days to the Commit Graph that allows using it on privately-hosted repositories
+
+### Changed
+
+- Improves Launchpad; closes [#3614](https://github.com/gitkraken/vscode-gitlens/issues/3614):
+  - Renames _Switch to Branch or Worktree_ option to _Switch to Branch_, since it already includes options to create a worktree in the action flow
+  - Adds _Pin_ and _Snooze_ buttons to the header item in the action step
+  - Draft pull requests for which the current user's review is needed are now also shown in the "Needs Your Review" group, with a draft icon
+- Improves the open in worktree action flow; closes [#3549](https://github.com/gitkraken/vscode-gitlens/issues/3549):
+  - Open multi-diff editor when opening a new worktree from a PR
+- Improves Launchpad View; closes [#3615](https://github.com/gitkraken/vscode-gitlens/issues/3615):
+  - Moves Launchpad View out of experimental status
+  - Replaces _Compare Pull Request_ hover icon button with _Open in Worktree_
+  - Remembers the collapsed/expanded state of groups
+  - Expands the _Current Branch_ group, and Launchpad item corresponding to the current branch, by default
+  - Draft pull requests for which the current user's review is needed are now also shown in the "Needs Your Review" group, with a draft icon
+  - Launchpad view is now more responsive to changes in the Launchpad including pinning and snoozing items
+  - Pinned items should now appear above non-pinned items in their respective groups
+- Extends GitKraken Pro trials from 7 to 14 days
+
+### Fixed
+
+- Fixes branch creation and switch quickpicks failing to close when a worktree is created during the flow
+- Fixes some cases where Launchpad can fail to detect a connected integration
+- Fixes [#3549](https://github.com/gitkraken/vscode-gitlens/issues/3549) - Webviews can have issues with high contrast themes
+- Fixes [#3734](https://github.com/gitkraken/vscode-gitlens/issues/3734) - Open multi-diff editor when opening a new worktree from a PR
+
+## [15.6.3] - 2024-11-05
+
+## [15.6.2] - 2024-10-17
+
+### Fixed
+
+- Fixes [#3680](https://github.com/gitkraken/vscode-gitlens/issues/3680) - GitLens Settings page (via _GitLens: Open Settings_) has double-encoded Html entities
+- Fixes popover menu background colors on the Commit Graph
+- Fixes [#3646](https://github.com/gitkraken/vscode-gitlens/issues/3646) - Interactive Rebase interface partially unreadable in high contrast dark color theme
+
+## [15.6.1] - 2024-10-14
+
+### Fixed
+
+- Fixes [#3650](https://github.com/gitkraken/vscode-gitlens/issues/3650) - "Create & Switch to Local Branch" from remote branch no longer prefills local branch name to match remote branch name
+- Fixes [#3651](https://github.com/gitkraken/vscode-gitlens/issues/3651) - "Open on Remote (Web)" does not use tracked branch name
+- Fixes [#3657](https://github.com/gitkraken/vscode-gitlens/issues/3657) - Creating a worktree from within a worktree chooses the wrong path
+- Fixes [#3090](https://github.com/gitkraken/vscode-gitlens/issues/3090) - Manually created empty bare clone repositories in a trusted directory crash worktree view since LocalGitProvider.findRepositoryUri returns just ".git" &mdash; thanks to [PR #3092](https://github.com/gitkraken/vscode-gitlens/pull/3092) by Dawn Hwang ([@hwangh95](https://github.com/hwangh95))
+- Fixes [#3667](https://github.com/gitkraken/vscode-gitlens/issues/3667) - Makes Launchpad search by repo name
+- Fixes failure to prompt to delete the branch after deleting a worktree when a modal was shown (e.g. when prompting for force)
+- Fixes issues when git fails to delete the worktree folder on Windows
+
+## [15.6.0] - 2024-10-07
+
+### Added
+
+- Adds [Cursor](https://cursor.so) support &mdash; closes [#3222](https://github.com/gitkraken/vscode-gitlens/issues/3222)
+- Adds monospace formatting in commit messages &mdash; closes [#2350](https://github.com/gitkraken/vscode-gitlens/issues/2350)
+- Adds a new `${authorFirst}` and `${authorLast}` commit formatting tokens that can be used in inline blame, commit hovers, etc &mdash; closes [#2980](https://github.com/gitkraken/vscode-gitlens/issues/2980)
+- Adds a new _Create New Branch_ button to the _Commit Graph_ toolbar &mdash; closes [#3553](https://github.com/gitkraken/vscode-gitlens/issues/3553)
+- Adds new ability to force push from the _Commit Graph_ toolbar&mdash; closes [#3493](https://github.com/gitkraken/vscode-gitlens/issues/3493)
+- Adds a new `gitlens.launchpad.includedOrganizations` setting to specify which organizations to include in _Launchpad_ &mdash; closes [#3550](https://github.com/gitkraken/vscode-gitlens/issues/3550)
+- Adds repository owner/name and code suggest to hovers on the experimental Launchpad view
+
+### Changed
+
+- Integrates the _GitKraken Account_ view into the bottom of the _Home_ view as a collapsible section &mdash; closes [#3536](https://github.com/gitkraken/vscode-gitlens/issues/3536)
+- Changes the new _Commit Graph_ sidebar to be enabled by default; use the `gitlens.graph.sidebar.enabled` settings to disable it
+- Changes how GitLens handles creating and renaming branches to avoid using the terminal &mdash; refs [#3528](https://github.com/gitkraken/vscode-gitlens/issues/3528)
+- Changes patch generation (e.g. cloud patches, code suggest, _Copy as Patch_, _Copy WorkingChanges to Worktree..._, etc) to automatically include untracked files
+- Improves _Switch_, _Open in Worktree_, and deeplink and Launchpad workflows
+  - Reduces prompts for locating repositories which the user has previously opened &mdash; closes [#3555](https://github.com/gitkraken/vscode-gitlens/issues/3555)
+  - Improves automatic detection of matching repositories for pull requests &mdash; closes [#3627](https://github.com/gitkraken/vscode-gitlens/issues/3627)
+  - Automatically fetches the repository when needed rather than prompting the user
+- Improves the integration connection indicator and connection button on the _Commit Graph_ &mdash; closes [#3538](https://github.com/gitkraken/vscode-gitlens/issues/3538)
+
+### Fixed
+
+- Fixes [#3548](https://github.com/gitkraken/vscode-gitlens/issues/3548) - Change the current branch icon on the Commit Graph to a worktree icon if its on a worktree
+- Fixes [#3592](https://github.com/gitkraken/vscode-gitlens/issues/3592) - Connecting to an integration via Remotes view (but likely others) doesn't work
+- Fixes [#3571](https://github.com/gitkraken/vscode-gitlens/issues/3571) - Gitlens fails to register buttons on top-right corner &mdash; thanks to [PR #3605](https://github.com/gitkraken/vscode-gitlens/pull/3605) by Jean Pierre ([@jeanp413](https://github.com/jeanp413))
+- Fixes [#3617](https://github.com/gitkraken/vscode-gitlens/issues/3617) - Auto-links not working for alphanumberic issue numbers
+- Fixes [#3573](https://github.com/gitkraken/vscode-gitlens/issues/3573) - 'Create Branch in Worktree' option in 'Create Branch' shows a repo picker if you have multiple repos open
+- Fixes [#3612](https://github.com/gitkraken/vscode-gitlens/issues/3612) - Prevents cloud integration sync process from opening gkdev connect page/flow
+- Fixes [#3519](https://github.com/gitkraken/vscode-gitlens/issues/3519) - Add fallback/cutoff to our backend calls similar to how we handle GitHub queries
+- Fixes [#3608](https://github.com/gitkraken/vscode-gitlens/issues/3608) - Integration connection page opening on every launch of VS Code and on profile change
+- Fixes [#3618](https://github.com/gitkraken/vscode-gitlens/issues/3618) -Reauthentication not working for cloud integrations
+- Fixes an issue where virtual repositories for GitHub PRs from forks wouldn't load properly
+- Fixes an issue where deleting a worktree would not always remove the worktree from the view
+- Fixes actions not working on Launchpad items with special characters in their branch name
+- Fixes _Open in Worktree_ command sometimes showing an unnecessary worktree confirmation step
+- Fixes some instances where the progress notification lingers after canceling when connecting an integration
+
+### Engineering
+
+- Adds end-to-end testing infrastructure using [Playwright](https://playwright.dev)
+- Adds vscode-test to run unit-tests &mdash; closes [#3570](https://github.com/gitkraken/vscode-gitlens/issues/3570)
+
+## [15.5.1] - 2024-09-16
+
 ### Fixed
 
 - Fixes [#3582](https://github.com/gitkraken/vscode-gitlens/issues/3582) - "Delete Branch" option is sometimes unexpectedly missing
@@ -4027,7 +4134,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ### Fixed
 
 - Fixes &#x1F91E; [#202](https://github.com/gitkraken/vscode-gitlens/issues/202) - Staged change's vscode diff side-by-side view shows the wrong history
-- Fixes &#x1F91E; [#216](https://github.com/gitkraken/vscode-gitlens/issues/216) - PowerShell session not started if GitLen is enabled
+- Fixes &#x1F91E; [#216](https://github.com/gitkraken/vscode-gitlens/issues/216) - PowerShell session not started if GitLens is enabled
 - Fixes [#217](https://github.com/gitkraken/vscode-gitlens/issues/217) - empty editor has git lens in status bar with old information
 - Fixes [#218](https://github.com/gitkraken/vscode-gitlens/issues/218) - Cannot read property 'replace' of undefined
 - Fixes issue with feedback when searching for commits without any matches
@@ -4197,7 +4304,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ### Changed
 
-- Swaps out Moment.js for date-fns to improve blame annotation performance and to reduce the GitLen bundle size (saves ~400kb)
+- Swaps out Moment.js for date-fns to improve blame annotation performance and to reduce the GitLens bundle size (saves ~400kb)
 
 ### Fixed
 
@@ -4802,7 +4909,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ### Added
 
-- Completely overhauls the [GitLens documentation](https://github.com/gitkraken/vscode-gitlens) and messaging &mdash; make sure to check it out to see all the powerful features GitLen provides!
+- Completely overhauls the [GitLens documentation](https://github.com/gitkraken/vscode-gitlens) and messaging &mdash; make sure to check it out to see all the powerful features GitLens provides!
 - Adds `gitlens.blame.annotation.activeLineDarkColor` & `gitlens.blame.annotation.activeLineLightColor` settings to control the colors of the active line blame annotation
 
 ### Changed
@@ -4854,7 +4961,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 - Adds `alt+f` shortcut for the _Search commits_ command (`gitlens.showCommitSearch`)
 - Adds _Show Commit Search_ command to the branch history quick pick menu
 - Adds _Show Stashed Changes_ command to the repository status quick pick menu
-- Adds a _Don't Show Again_ option to the GitLen update notification
+- Adds a _Don't Show Again_ option to the GitLens update notification
 
 ### Changed
 
@@ -5614,7 +5721,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 - Initial release but still heavily a work in progress.
 
-[unreleased]: https://github.com/gitkraken/vscode-gitlens/compare/v15.5.0...HEAD
+[unreleased]: https://github.com/gitkraken/vscode-gitlens/compare/v15.6.3...HEAD
+[15.6.3]: https://github.com/gitkraken/vscode-gitlens/compare/v15.6.2...gitkraken:v15.6.3
+[15.6.2]: https://github.com/gitkraken/vscode-gitlens/compare/v15.6.1...gitkraken:v15.6.2
+[15.6.1]: https://github.com/gitkraken/vscode-gitlens/compare/v15.6.0...gitkraken:v15.6.1
+[15.6.0]: https://github.com/gitkraken/vscode-gitlens/compare/v15.5.1...gitkraken:v15.6.0
+[15.5.1]: https://github.com/gitkraken/vscode-gitlens/compare/v15.5.0...gitkraken:v15.5.1
 [15.5.0]: https://github.com/gitkraken/vscode-gitlens/compare/v15.4.0...gitkraken:v15.5.0
 [15.4.0]: https://github.com/gitkraken/vscode-gitlens/compare/v15.3.1...gitkraken:v15.4.0
 [15.3.1]: https://github.com/gitkraken/vscode-gitlens/compare/v15.3.0...gitkraken:v15.3.1

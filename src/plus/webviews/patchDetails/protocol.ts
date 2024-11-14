@@ -17,7 +17,7 @@ import type {
 } from '../../../gk/models/drafts';
 import type { GkRepositoryId } from '../../../gk/models/repositoryIdentities';
 import type { DateTimeFormat } from '../../../system/date';
-import type { Serialized } from '../../../system/serialize';
+import type { Serialized } from '../../../system/vscode/serialize';
 import type { IpcScope, WebviewState } from '../../../webviews/protocol';
 import { IpcCommand, IpcNotification, IpcRequest } from '../../../webviews/protocol';
 import type { OrganizationMember } from '../../gk/account/organization';
@@ -269,8 +269,8 @@ export const UpdatePatchUserSelectionCommand = new IpcCommand<UpdatePatchUserSel
 
 export type DidExplainParams =
 	| {
-			summary: string | undefined;
-			error?: undefined;
+			result: { summary: string; body: string };
+			error?: never;
 	  }
 	| { error: { message: string } };
 export const ExplainRequest = new IpcRequest<void, DidExplainParams>(scope, 'explain');

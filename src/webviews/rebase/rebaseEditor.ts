@@ -1,3 +1,4 @@
+import { getNonce } from '@env/crypto';
 import type {
 	CancellationToken,
 	CustomTextEditorProvider,
@@ -6,7 +7,6 @@ import type {
 	WebviewPanelOnDidChangeViewStateEvent,
 } from 'vscode';
 import { ConfigurationTarget, Disposable, Position, Range, Uri, window, workspace, WorkspaceEdit } from 'vscode';
-import { getNonce } from '@env/crypto';
 import { InspectCommand } from '../../commands/inspect';
 import type { Container } from '../../container';
 import { emojify } from '../../emojis';
@@ -14,8 +14,6 @@ import type { GitCommit } from '../../git/models/commit';
 import { createReference } from '../../git/models/reference';
 import { RepositoryChange, RepositoryChangeComparisonMode } from '../../git/models/repository';
 import { showRebaseSwitchToTextWarningMessage } from '../../messages';
-import { executeCoreCommand } from '../../system/command';
-import { configuration } from '../../system/configuration';
 import { getScopedCounter } from '../../system/counter';
 import { debug, log } from '../../system/decorators/log';
 import type { Deferrable } from '../../system/function';
@@ -23,6 +21,8 @@ import { debounce } from '../../system/function';
 import { join, map } from '../../system/iterable';
 import { Logger } from '../../system/logger';
 import { normalizePath } from '../../system/path';
+import { executeCoreCommand } from '../../system/vscode/command';
+import { configuration } from '../../system/vscode/configuration';
 import type { IpcMessage, WebviewFocusChangedParams } from '../protocol';
 import { WebviewFocusChangedCommand } from '../protocol';
 import { replaceWebviewHtmlTokens, resetContextKeys, setContextKeys } from '../webviewController';
@@ -638,7 +638,7 @@ async function parseRebaseTodo(
 	}
 
 	const defaultDateFormat = configuration.get('defaultDateFormat');
-	const command = InspectCommand.getMarkdownCommandArgs(`\${commit}`, context.repoPath);
+	const command = InspectCommand.createMarkdownCommandLink(`\${commit}`, context.repoPath);
 
 	const ontoCommit = onto ? context.commits?.find(c => c.sha.startsWith(onto)) : undefined;
 

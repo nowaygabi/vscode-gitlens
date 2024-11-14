@@ -1,7 +1,7 @@
-import type { Uri } from 'vscode';
-// eslint-disable-next-line no-restricted-imports
-import { CancellationError as _CancellationError } from 'vscode';
 import type { Response } from '@env/fetch';
+import type { Uri } from 'vscode';
+// eslint-disable-next-line @typescript-eslint/no-restricted-imports
+import { CancellationError as _CancellationError } from 'vscode';
 import type { RequiredSubscriptionPlans, Subscription } from './plus/gk/account/subscription';
 import { isSubscriptionPaidPlan } from './plus/gk/account/subscription';
 
@@ -14,7 +14,7 @@ export class AccessDeniedError extends Error {
 		if (subscription.account?.verified === false) {
 			message = 'Email verification required';
 		} else if (required != null && isSubscriptionPaidPlan(required)) {
-			message = 'Paid plan required';
+			message = 'GitLens Pro required';
 		} else {
 			message = 'Plan required';
 		}
@@ -207,6 +207,14 @@ export class ProviderNotFoundError extends Error {
 		);
 
 		Error.captureStackTrace?.(this, ProviderNotFoundError);
+	}
+}
+
+export class ProviderNotSupportedError extends Error {
+	constructor(provider: string) {
+		super(`Action is not supported on the ${provider} provider.`);
+
+		Error.captureStackTrace?.(this, ProviderNotSupportedError);
 	}
 }
 

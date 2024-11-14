@@ -9,10 +9,10 @@ import { showCommitPicker } from '../quickpicks/commitPicker';
 import { CommandQuickPickItem } from '../quickpicks/items/common';
 import type { DirectiveQuickPickItem } from '../quickpicks/items/directive';
 import { createDirectiveQuickPickItem, Directive } from '../quickpicks/items/directive';
-import { command, executeCommand } from '../system/command';
 import { Logger } from '../system/logger';
-import { splitPath } from '../system/path';
 import { pad } from '../system/string';
+import { command, executeCommand } from '../system/vscode/command';
+import { splitPath } from '../system/vscode/path';
 import { ActiveEditorCommand, getCommandUri } from './base';
 import type { DiffWithCommandArgs } from './diffWith';
 import type { DiffWithRevisionFromCommandArgs } from './diffWithRevisionFrom';
@@ -61,7 +61,7 @@ export class DiffWithRevisionCommand extends ActiveEditorCommand {
 							getState: async () => {
 								const items: (CommandQuickPickItem | DirectiveQuickPickItem)[] = [];
 
-								const status = await this.container.git.getStatusForRepo(gitUri.repoPath);
+								const status = await this.container.git.getStatus(gitUri.repoPath);
 								if (status != null) {
 									for (const f of status.files) {
 										if (f.workingTreeStatus === '?' || f.workingTreeStatus === '!') {

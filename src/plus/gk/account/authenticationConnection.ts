@@ -1,7 +1,7 @@
-import type { CancellationToken, Disposable, StatusBarItem } from 'vscode';
-import { CancellationTokenSource, env, StatusBarAlignment, Uri, window } from 'vscode';
 import { uuid } from '@env/crypto';
 import type { Response } from '@env/fetch';
+import type { CancellationToken, Disposable, StatusBarItem } from 'vscode';
+import { CancellationTokenSource, env, StatusBarAlignment, Uri, window } from 'vscode';
 import type { TrackingContext } from '../../../constants.telemetry';
 import type { Container } from '../../../container';
 import { debug } from '../../../system/decorators/log';
@@ -9,7 +9,7 @@ import type { DeferredEvent, DeferredEventExecutor } from '../../../system/event
 import { promisifyDeferred } from '../../../system/event';
 import { Logger } from '../../../system/logger';
 import { getLogScope } from '../../../system/logger.scope';
-import { openUrl } from '../../../system/utils';
+import { openUrl } from '../../../system/vscode/utils';
 import type { ServerConnection } from '../serverConnection';
 
 export const LoginUriPathPrefix = 'login';
@@ -69,6 +69,8 @@ export class AuthenticationConnection implements Disposable {
 		signUp: boolean = false,
 		context?: TrackingContext,
 	): Promise<string> {
+		const scope = getLogScope();
+
 		this.updateStatusBarItem(true);
 
 		// Include a state parameter here to prevent CSRF attacks
@@ -88,6 +90,8 @@ export class AuthenticationConnection implements Disposable {
 		);
 
 		if (!(await openUrl(uri.toString(true)))) {
+			Logger.error(undefined, scope, 'Opening login URL failed');
+
 			this._pendingStates.delete(scopeKey);
 			this.updateStatusBarItem(false);
 			throw new Error('Cancelled');
@@ -103,11 +107,7 @@ export class AuthenticationConnection implements Disposable {
 			this._deferredCodeExchanges.set(scopeKey, deferredCodeExchange);
 		}
 
-		if (this._cancellationSource != null) {
-			this._cancellationSource.cancel();
-			this._cancellationSource = undefined;
-		}
-
+		this._cancellationSource?.cancel();
 		this._cancellationSource = new CancellationTokenSource();
 
 		try {
@@ -126,6 +126,9 @@ export class AuthenticationConnection implements Disposable {
 
 			const token = await this.getTokenFromCodeAndState(code, gkstate, scopeKey);
 			return token;
+		} catch (ex) {
+			Logger.error(ex, scope);
+			throw ex;
 		} finally {
 			this._cancellationSource?.cancel();
 			this._cancellationSource = undefined;
@@ -166,7 +169,7 @@ export class AuthenticationConnection implements Disposable {
 					input.onDidAccept(() => resolve(input.value)),
 				);
 
-				input.title = 'GitKraken Sign In';
+				input.title = 'GitLens Sign In';
 				input.placeholder = 'Please enter the provided authorization code';
 				input.prompt = 'If the auto-redirect fails, paste the authorization code';
 
@@ -236,7 +239,7 @@ export class AuthenticationConnection implements Disposable {
 	private updateStatusBarItem(signingIn?: boolean) {
 		if (signingIn && this._statusBarItem == null) {
 			this._statusBarItem = window.createStatusBarItem('gitlens.plus.signIn', StatusBarAlignment.Left);
-			this._statusBarItem.name = 'GitKraken Sign in';
+			this._statusBarItem.name = 'GitLens Sign in';
 			this._statusBarItem.text = 'Signing in to GitKraken...';
 			this._statusBarItem.show();
 		}

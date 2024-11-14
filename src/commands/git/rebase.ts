@@ -9,7 +9,7 @@ import { createDirectiveQuickPickItem, Directive } from '../../quickpicks/items/
 import type { FlagsQuickPickItem } from '../../quickpicks/items/flags';
 import { createFlagsQuickPickItem } from '../../quickpicks/items/flags';
 import { pluralize } from '../../system/string';
-import { getEditorCommand } from '../../system/utils';
+import { getEditorCommand } from '../../system/vscode/utils';
 import type { ViewsWithRepositoryFolders } from '../../views/viewBase';
 import type {
 	AsyncStepResultGenerator,
@@ -93,7 +93,7 @@ export class RebaseGitCommand extends QuickCommand<State> {
 	protected async *steps(state: PartialStepState<State>): StepGenerator {
 		const context: Context = {
 			repos: this.container.git.openRepositories,
-			associatedView: this.container.commitsView,
+			associatedView: this.container.views.commits,
 			cache: new Map<string, Promise<GitLog | undefined>>(),
 			destination: undefined!,
 			pickCommit: false,
@@ -131,7 +131,7 @@ export class RebaseGitCommand extends QuickCommand<State> {
 			}
 
 			if (context.destination == null) {
-				const branch = await state.repo.getBranch();
+				const branch = await state.repo.git.getBranch();
 				if (branch == null) break;
 
 				context.destination = branch;

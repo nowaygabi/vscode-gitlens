@@ -11,10 +11,10 @@ import type { BranchSortOptions, GitBranch } from '../git/models/branch';
 import type { GitReference } from '../git/models/reference';
 import { isBranchReference, isRevisionReference, isTagReference } from '../git/models/reference';
 import type { GitTag, TagSortOptions } from '../git/models/tag';
-import type { KeyboardScope } from '../system/keyboard';
-import { getQuickPickIgnoreFocusOut } from '../system/utils';
-import type { BranchQuickPickItem, RefQuickPickItem, TagQuickPickItem } from './items/gitCommands';
-import { createRefQuickPickItem } from './items/gitCommands';
+import type { KeyboardScope } from '../system/vscode/keyboard';
+import { getQuickPickIgnoreFocusOut } from '../system/vscode/utils';
+import type { BranchQuickPickItem, RefQuickPickItem, TagQuickPickItem } from './items/gitWizard';
+import { createRefQuickPickItem } from './items/gitWizard';
 
 export type ReferencesQuickPickItem = BranchQuickPickItem | TagQuickPickItem | RefQuickPickItem;
 
@@ -25,7 +25,6 @@ export const enum ReferencesQuickPickIncludes {
 	HEAD = 1 << 3,
 
 	BranchesAndTags = Branches | Tags,
-	// eslint-disable-next-line @typescript-eslint/prefer-literal-enum-member
 	All = Branches | Tags | WorkingTree | HEAD,
 }
 

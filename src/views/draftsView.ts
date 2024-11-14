@@ -9,10 +9,10 @@ import { AuthenticationRequiredError } from '../errors';
 import { unknownGitUri } from '../git/gitUri';
 import type { Draft } from '../gk/models/drafts';
 import { ensurePlusFeaturesEnabled } from '../plus/gk/utils';
-import { executeCommand } from '../system/command';
-import { configuration } from '../system/configuration';
 import { gate } from '../system/decorators/gate';
 import { groupByFilterMap } from '../system/iterable';
+import { executeCommand } from '../system/vscode/command';
+import { configuration } from '../system/vscode/configuration';
 import { CacheableChildrenViewNode } from './nodes/abstract/cacheableChildrenViewNode';
 import { DraftNode } from './nodes/draftNode';
 import { GroupingNode } from './nodes/groupingNode';
@@ -115,14 +115,12 @@ export class DraftsView extends ViewBase<'drafts', DraftsViewNode, DraftsViewCon
 	}
 
 	protected registerCommands(): Disposable[] {
-		void this.container.viewCommands;
-
 		return [
 			registerViewCommand(
 				this.getQualifiedCommand('info'),
 				() =>
 					executeCommand<OpenWalkthroughCommandArgs>(Commands.OpenWalkthrough, {
-						step: 'code-collab',
+						step: 'streamline-collaboration',
 						source: 'cloud-patches',
 						detail: 'info',
 					}),

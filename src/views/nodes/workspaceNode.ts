@@ -2,9 +2,9 @@ import { Disposable, ThemeIcon, TreeItem, TreeItemCollapsibleState } from 'vscod
 import type { RepositoriesChangeEvent } from '../../git/gitProviderService';
 import { GitUri } from '../../git/gitUri';
 import type { CloudWorkspace, LocalWorkspace } from '../../plus/workspaces/models';
-import { createCommand } from '../../system/command';
 import { debug } from '../../system/decorators/log';
 import { weakEvent } from '../../system/event';
+import { createCommand } from '../../system/vscode/command';
 import { createViewDecorationUri } from '../viewDecorationProvider';
 import type { WorkspacesView } from '../workspacesView';
 import { SubscribeableViewNode } from './abstract/subscribeableViewNode';
@@ -122,7 +122,7 @@ export class WorkspaceNode extends SubscribeableViewNode<
 
 		item.id = this.id;
 		item.contextValue = contextValue;
-		item.iconPath = new ThemeIcon(this.workspace.type == 'cloud' ? 'cloud' : 'folder');
+		item.iconPath = new ThemeIcon(this.workspace.type === 'cloud' ? 'cloud' : 'folder');
 		item.tooltip = `${this.workspace.name}\n${
 			cloud ? `Cloud Workspace ${this.workspace.shared ? '(Shared)' : ''}` : 'Local Workspace'
 		}${cloud && this.workspace.provider != null ? `\nProvider: ${this.workspace.provider}` : ''}`;

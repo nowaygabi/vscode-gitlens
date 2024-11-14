@@ -1,13 +1,12 @@
 import type { Range, Uri } from 'vscode';
 import { env } from 'vscode';
-import type { DynamicAutolinkReference } from '../../annotations/autolinks';
-import type { AutolinkReference } from '../../config';
+import type { AutolinkReference, DynamicAutolinkReference } from '../../autolinks';
 import type { GkProviderId } from '../../gk/models/repositoryIdentities';
 import type { ResourceDescriptor } from '../../plus/integrations/integration';
 import { memoize } from '../../system/decorators/memoize';
 import { encodeUrl } from '../../system/encoding';
 import { getSettledValue } from '../../system/promise';
-import { openUrl } from '../../system/utils';
+import { openUrl } from '../../system/vscode/utils';
 import type { ProviderReference } from '../models/remoteProvider';
 import type { RemoteResource } from '../models/remoteResource';
 import { RemoteResourceType } from '../models/remoteResource';

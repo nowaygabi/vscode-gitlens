@@ -1,8 +1,9 @@
 import { Commands } from '../constants.commands';
+import type { SupportedCloudIntegrationIds } from '../constants.integrations';
 import type { Source } from '../constants.telemetry';
 import type { Container } from '../container';
-import type { SupportedCloudIntegrationIds } from '../plus/integrations/authentication/models';
-import { command } from '../system/command';
+import { createMarkdownCommandLink } from '../system/commands';
+import { command } from '../system/vscode/command';
 import { Command } from './base';
 
 export interface ManageCloudIntegrationsCommandArgs extends Source {}
@@ -26,6 +27,13 @@ export class ManageCloudIntegrationsCommand extends Command {
 
 @command()
 export class ConnectCloudIntegrationsCommand extends Command {
+	static createMarkdownCommandLink(args: ConnectCloudIntegrationsCommandArgs): string {
+		return createMarkdownCommandLink<ConnectCloudIntegrationsCommandArgs>(
+			Commands.PlusConnectCloudIntegrations,
+			args,
+		);
+	}
+
 	constructor(private readonly container: Container) {
 		super(Commands.PlusConnectCloudIntegrations);
 	}
